@@ -305,22 +305,20 @@ async function renderEntries(entries, containerId, isCompact = false) {
     let html = '';
     for (const entry of entries) {
         let imagesHtml = '';
-        if (!isCompact) {
-            try {
-                const imagesRes = await fetch(`${API_BASE}/api/entries/${entry.id}/images`, { credentials: 'same-origin' });
-                const images = await imagesRes.json();
-                if (images.length > 0) {
-                    imagesHtml = `
-                        <div class="entry-images">
-                            ${images.map(img => `
-                                <img src="${img.url}" alt="" class="entry-image-thumb" onclick="openImageModal('${img.url}')">
-                            `).join('')}
-                        </div>
-                    `;
-                }
-            } catch (e) {
-                console.error('Error loading images:', e);
+        try {
+            const imagesRes = await fetch(`${API_BASE}/api/entries/${entry.id}/images`, { credentials: 'same-origin' });
+            const images = await imagesRes.json();
+            if (images.length > 0) {
+                imagesHtml = `
+                    <div class="entry-images">
+                        ${images.map(img => `
+                            <img src="${img.url}" alt="" class="entry-image-thumb" onclick="event.stopPropagation(); openImageModal('${img.url}')">
+                        `).join('')}
+                    </div>
+                `;
             }
+        } catch (e) {
+            console.error('Error loading images:', e);
         }
         
         html += `
