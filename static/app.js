@@ -183,13 +183,20 @@ function removeImage(btn, fileName) {
 
 async function uploadImages(entryId) {
     for (let file of selectedImages) {
-        const formData = new FormData();
-        formData.append('image', file);
-        
-        await fetch(`${API_BASE}/api/entries/${entryId}/images`, {
-            method: 'POST',
-            body: formData
-        });
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            const res = await fetch(`${API_BASE}/api/entries/${entryId}/images`, {
+                method: 'POST',
+                body: formData
+            });
+            if (!res.ok) {
+                console.error('Image upload failed:', file.name);
+            }
+        } catch (err) {
+            console.error('Image upload error:', file.name, err);
+        }
     }
     selectedImages = [];
 }

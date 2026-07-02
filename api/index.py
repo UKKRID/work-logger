@@ -457,10 +457,11 @@ def upload_image(entry_id):
                 'storage_path': filename
             })
             return jsonify({
-                'id': entry['id'],
+                'id': entry['id'] if entry else '',
                 'filename': filename,
                 'url': url
             }), 201
+        return jsonify({'error': 'Failed to upload image to storage'}), 500
     else:
         filename = save_image_local(compressed, entry_id)
         conn = get_db()
