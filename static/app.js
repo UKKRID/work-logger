@@ -476,8 +476,13 @@ async function performAISearch() {
     const query = aiSearchInput.value.trim();
     if (!query) return;
     
+    const searchBtn = aiSearchBtn;
+    const originalText = searchBtn.textContent;
+    searchBtn.disabled = true;
+    searchBtn.innerHTML = '<span class="spinner"></span>';
+    
     const resultsContainer = document.getElementById('aiResults');
-    resultsContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">กำลังค้นหา...</p>';
+    resultsContainer.innerHTML = '<div class="loading-state"><span class="spinner large"></span><p>กำลังค้นหา...</p></div>';
     
     try {
         const res = await fetch(`${API_BASE}/api/search/ai`, {
@@ -517,6 +522,9 @@ async function performAISearch() {
     } catch (error) {
         console.error('Error performing AI search:', error);
         resultsContainer.innerHTML = '<p style="color: var(--danger);">เกิดข้อผิดพลาดในการค้นหา</p>';
+    } finally {
+        searchBtn.disabled = false;
+        searchBtn.textContent = originalText;
     }
 }
 
@@ -603,6 +611,11 @@ function openImageModal(url) {
 async function handleSubmit(e) {
     e.preventDefault();
     
+    const submitBtn = entryForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> กำลังบันทึก...';
+    
     const data = {
         title: document.getElementById('entryTitle').value,
         description: document.getElementById('entryDescription').value,
@@ -629,8 +642,8 @@ async function handleSubmit(e) {
         if (res.ok) {
             const entry = await res.json();
             
-            // Upload images if any
             if (selectedImages.length > 0) {
+                submitBtn.innerHTML = '<span class="spinner"></span> กำลังอัพรูป...';
                 await uploadImages(entry.id);
             }
             
@@ -642,6 +655,9 @@ async function handleSubmit(e) {
         }
     } catch (error) {
         console.error('Error saving entry:', error);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
     }
 }
 
