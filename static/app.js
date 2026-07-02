@@ -362,7 +362,7 @@ async function viewEntryDetail(id) {
 
         let imagesHtml = '';
         try {
-            const imagesRes = await fetch(`${API_BASE}/api/entries/${id}/images`);
+            const imagesRes = await fetch(`${API_BASE}/api/entries/${id}/images`, { credentials: 'same-origin' });
             const images = await imagesRes.json();
             if (images.length > 0) {
                 imagesHtml = `
@@ -553,7 +553,7 @@ function openModal(entry = null) {
 
 async function loadExistingImages(entryId) {
     try {
-        const res = await fetch(`${API_BASE}/api/entries/${entryId}/images`);
+        const res = await fetch(`${API_BASE}/api/entries/${entryId}/images`, { credentials: 'same-origin' });
         const images = await res.json();
         if (images.length > 0) {
             images.forEach(img => {

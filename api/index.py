@@ -380,13 +380,15 @@ def update_entry(entry_id):
     data = request.json
     
     if USE_SUPABASE:
-        entry = supabase_update('worklog', {
+        supabase_update('worklog', {
             'title': data['title'],
             'description': data.get('description', ''),
             'category': data.get('category', 'general'),
             'tags': json.dumps(data.get('tags', []))
-        }, {'id': entry_id, 'user_id': user_id})
-        return jsonify(entry)
+        }, {'id': f'eq.{entry_id}'})
+        entries = supabase_get('worklog', {'id': f'eq.{entry_id}', 'limit': '1'})
+        entry = entries[0] if entries else None
+        return jsonify(entry) if entry else jsonify({'error': 'Not found'}), 404
     else:
         conn = get_db()
         conn.execute(
@@ -411,8 +413,8 @@ def delete_entry(entry_id):
         for img in images:
             if img.get('storage_path'):
                 supabase_delete_file(img['storage_path'])
-        supabase_delete('images', {'entry_id': entry_id, 'user_id': user_id})
-        supabase_delete('worklog', {'id': entry_id, 'user_id': user_id})
+        supabase_delete('images', {'entry_id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}'})
+        supabase_delete('worklog', {'id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}'})
     else:
         conn = get_db()
         images = conn.execute('SELECT filename FROM images WHERE entry_id = ? AND user_id = ?', (entry_id, user_id)).fetchall()
@@ -519,7 +521,7 @@ def delete_image(image_id):
         image = supabase_get('images', {'id': f'eq.{image_id}', 'user_id': f'eq.{user_id}'})
         if image and image[0].get('storage_path'):
             supabase_delete_file(image[0]['storage_path'])
-        supabase_delete('images', {'id': image_id, 'user_id': user_id})
+        supabase_delete('images', {'id': f'eq.{image_id}', 'user_id': f'eq.{user_id}'})
     else:
         conn = get_db()
         image = conn.execute('SELECT filename FROM images WHERE id = ? AND user_id = ?', (image_id, user_id)).fetchone()
