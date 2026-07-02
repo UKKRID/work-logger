@@ -56,21 +56,14 @@ body {
 .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
     margin-bottom: 40px;
 }
 
 .logo-img {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.logo-text {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-primary);
+    width: 100%;
+    max-width: 200px;
+    height: auto;
 }
 
 .nav-menu {
