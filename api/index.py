@@ -24,7 +24,7 @@ def create_token(user_id, username, display_name):
 
 def verify_token(token):
     try:
-        data = serializer.loads(token, max_age=86400 * 30)
+        data = serializer.loads(token, max_age=86400)
         return data
     except (BadSignature, SignatureExpired):
         return None
@@ -203,7 +203,7 @@ def login():
             user = users[0]
             token = create_token(user['id'], user['username'], user.get('display_name') or user['username'])
             resp = jsonify({'success': True, 'display_name': user.get('display_name') or user['username']})
-            resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+            resp.set_cookie('auth_token', token, max_age=86400, httponly=False, samesite='Lax')
             return resp
     else:
         conn = get_db()
@@ -215,7 +215,7 @@ def login():
         if user:
             token = create_token(user['id'], user['username'], user['display_name'] or user['username'])
             resp = jsonify({'success': True, 'display_name': user['display_name'] or user['username']})
-            resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+            resp.set_cookie('auth_token', token, max_age=86400, httponly=False, samesite='Lax')
             return resp
     
     return jsonify({'error': 'Username หรือ Password ไม่ถูกต้อง'}), 401
@@ -261,7 +261,7 @@ def register():
         if user:
             token = create_token(user['id'], user['username'], display_name)
             resp = jsonify({'success': True, 'display_name': display_name})
-            resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+            resp.set_cookie('auth_token', token, max_age=86400, httponly=False, samesite='Lax')
             return resp
     else:
         conn = get_db()
@@ -280,7 +280,7 @@ def register():
         
         token = create_token(user_id, username, display_name)
         resp = jsonify({'success': True, 'display_name': display_name})
-        resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+        resp.set_cookie('auth_token', token, max_age=86400, httponly=False, samesite='Lax')
         return resp
     
     return jsonify({'error': 'เกิดข้อผิดพลาด'}), 500
