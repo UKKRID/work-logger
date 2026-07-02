@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory, session
+from flask import Flask, render_template, jsonify, request, send_from_directory
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 import sqlite3
 import json
 from datetime import datetime
@@ -15,7 +16,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, static_folder='../static', template_folder='../templates')
-app.secret_key = os.urandom(24)
+SECRET_KEY = os.getenv('SECRET_KEY', 'worklogger-secret-key-change-in-production')
+serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+def create_token(user_id, username, display_name):
+    return serializer.dumps({'user_id': user_id, 'username': username, 'display_name': display_name})
+
+def verify_token(token):
+    try:
+        data = serializer.loads(token, max_age=86400 * 30)
+        return data
+    except (BadSignature, SignatureExpired):
+        return None
+
+def get_current_user():
+    token = request.cookies.get('auth_token')
+    if not token:
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if token:
+        return verify_token(token)
+    return None
 
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
@@ -159,7 +179,8 @@ if not os.path.exists(DB_PATH):
 
 @app.route('/')
 def index():
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return render_template('login.html')
     return render_template('index.html')
 
@@ -180,10 +201,10 @@ def login():
         users = supabase_get('users', {'username': f'eq.{username}', 'password': f'eq.{password}'})
         if users and len(users) > 0:
             user = users[0]
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['display_name'] = user.get('display_name') or user['username']
-            return jsonify({'success': True, 'display_name': session['display_name']})
+            token = create_token(user['id'], user['username'], user.get('display_name') or user['username'])
+            resp = jsonify({'success': True, 'display_name': user.get('display_name') or user['username']})
+            resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+            return resp
     else:
         conn = get_db()
         user = conn.execute(
@@ -192,26 +213,28 @@ def login():
         ).fetchone()
         conn.close()
         if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['display_name'] = user['display_name'] or user['username']
-            return jsonify({'success': True, 'display_name': session['display_name']})
+            token = create_token(user['id'], user['username'], user['display_name'] or user['username'])
+            resp = jsonify({'success': True, 'display_name': user['display_name'] or user['username']})
+            resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+            return resp
     
     return jsonify({'error': 'Username หรือ Password ไม่ถูกต้อง'}), 401
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
-    session.clear()
-    return jsonify({'success': True})
+    resp = jsonify({'success': True})
+    resp.delete_cookie('auth_token')
+    return resp
 
 @app.route('/api/auth/me')
 def auth_me():
-    if 'user_id' in session:
+    user = get_current_user()
+    if user:
         return jsonify({
             'logged_in': True,
-            'username': session.get('username'),
-            'display_name': session.get('display_name'),
-            'user_id': session.get('user_id')
+            'username': user['username'],
+            'display_name': user.get('display_name') or user['username'],
+            'user_id': user['user_id']
         })
     return jsonify({'logged_in': False})
 
@@ -236,10 +259,10 @@ def register():
             'display_name': display_name
         })
         if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['display_name'] = display_name
-            return jsonify({'success': True, 'display_name': display_name})
+            token = create_token(user['id'], user['username'], display_name)
+            resp = jsonify({'success': True, 'display_name': display_name})
+            resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+            return resp
     else:
         conn = get_db()
         existing = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
@@ -255,10 +278,10 @@ def register():
         user_id = cursor.lastrowid
         conn.close()
         
-        session['user_id'] = user_id
-        session['username'] = username
-        session['display_name'] = display_name
-        return jsonify({'success': True, 'display_name': display_name})
+        token = create_token(user_id, username, display_name)
+        resp = jsonify({'success': True, 'display_name': display_name})
+        resp.set_cookie('auth_token', token, max_age=86400 * 30, httponly=False, samesite='Lax')
+        return resp
     
     return jsonify({'error': 'เกิดข้อผิดพลาด'}), 500
 
@@ -271,10 +294,11 @@ def api_status():
 
 @app.route('/api/entries', methods=['GET'])
 def get_entries():
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     search = request.args.get('search', '')
     category = request.args.get('category', '')
     limit = request.args.get('limit', 50, type=int)
@@ -318,10 +342,11 @@ def get_entries():
 
 @app.route('/api/entries', methods=['POST'])
 def create_entry():
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     data = request.json
     
     if USE_SUPABASE:
@@ -347,10 +372,11 @@ def create_entry():
 
 @app.route('/api/entries/<entry_id>', methods=['PUT'])
 def update_entry(entry_id):
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     data = request.json
     
     if USE_SUPABASE:
@@ -374,10 +400,11 @@ def update_entry(entry_id):
 
 @app.route('/api/entries/<entry_id>', methods=['DELETE'])
 def delete_entry(entry_id):
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     
     if USE_SUPABASE:
         images = supabase_get('images', {'entry_id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}'})
@@ -401,10 +428,11 @@ def delete_entry(entry_id):
 
 @app.route('/api/entries/<entry_id>/images', methods=['POST'])
 def upload_image(entry_id):
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     
     if 'image' not in request.files:
         return jsonify({'error': 'No image provided'}), 400
@@ -451,10 +479,11 @@ def upload_image(entry_id):
 
 @app.route('/api/entries/<entry_id>/images', methods=['GET'])
 def get_entry_images(entry_id):
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     
     if USE_SUPABASE:
         images = supabase_get('images', {'entry_id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}', 'order': 'created_at'})
@@ -479,10 +508,11 @@ def get_entry_images(entry_id):
 
 @app.route('/api/images/<image_id>', methods=['DELETE'])
 def delete_image(image_id):
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     
     if USE_SUPABASE:
         image = supabase_get('images', {'id': f'eq.{image_id}', 'user_id': f'eq.{user_id}'})
@@ -507,10 +537,11 @@ def uploaded_file(filename):
 
 @app.route('/api/search/ai', methods=['POST'])
 def ai_search():
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     data = request.json
     query = data.get('query', '')
     
@@ -574,10 +605,11 @@ def ai_search():
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    if 'user_id' not in session:
+    user = get_current_user()
+    if not user:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    user_id = user['user_id']
     
     if USE_SUPABASE:
         entries = supabase_get('worklog', {'select': 'id,category,created_at', 'user_id': f'eq.{user_id}'})
