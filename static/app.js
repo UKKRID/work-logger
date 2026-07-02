@@ -181,18 +181,21 @@ function removeImage(btn, fileName) {
     btn.parentElement.remove();
 }
 
-async function uploadImages(entryId) {
-    for (let file of selectedImages) {
+async function uploadImages(entryId, files) {
+    const imagesToUpload = files || selectedImages;
+    for (let file of imagesToUpload) {
         try {
             const formData = new FormData();
             formData.append('image', file);
             
             const res = await fetch(`${API_BASE}/api/entries/${entryId}/images`, {
                 method: 'POST',
+                credentials: 'same-origin',
                 body: formData
             });
             if (!res.ok) {
-                console.error('Image upload failed:', file.name);
+                const err = await res.json().catch(() => ({}));
+                console.error('Image upload failed:', file.name, err.error || res.status);
             }
         } catch (err) {
             console.error('Image upload error:', file.name, err);
@@ -644,14 +647,21 @@ async function handleSubmit(e) {
             
             if (selectedImages.length > 0) {
                 submitBtn.innerHTML = '<span class="spinner"></span> กำลังอัพรูป...';
-                await uploadImages(entry.id);
+                const imgsToUpload = [...selectedImages];
+                selectedImages = [];
+                await uploadImages(entry.id, imgsToUpload);
+            } else {
+                closeModal();
             }
             
-            closeModal();
             loadStats();
             if (currentView === 'dashboard') loadRecentEntries();
             if (currentView === 'entries') loadAllEntries();
             if (currentView === 'timeline') loadTimeline();
+            if (selectedImages.length === 0) closeModal();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            console.error('Save failed:', err);
         }
     } catch (error) {
         console.error('Error saving entry:', error);
