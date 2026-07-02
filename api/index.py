@@ -195,12 +195,21 @@ def get_entries():
     limit = request.args.get('limit', 50, type=int)
     
     if USE_SUPABASE:
-        params = {'order': 'created_at.desc', 'limit': str(limit)}
-        if search:
-            params['or'] = f'title.ilike.%{search}%,description.ilike.%{search}%'
+        params = {'order': 'created_at.desc', 'limit': '1000'}
         if category:
             params['category'] = f'eq.{category}'
         entries = supabase_get('worklog', params)
+        
+        if search:
+            search_lower = search.lower()
+            entries = [
+                e for e in entries
+                if search_lower in (e.get('title') or '').lower()
+                or search_lower in (e.get('description') or '').lower()
+                or search_lower in (e.get('tags') or '').lower()
+            ]
+        
+        entries = entries[:limit]
         return jsonify(entries)
     else:
         conn = get_db()
