@@ -5,21 +5,21 @@
 }
 
 :root {
-    --primary: #6366f1;
-    --primary-dark: #4f46e5;
-    --primary-light: #818cf8;
+    --primary: #16a34a;
+    --primary-dark: #15803d;
+    --primary-light: #4ade80;
     --bg-dark: #0f172a;
     --bg-card: #1e293b;
     --bg-card-hover: #263548;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --border: #334155;
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border: #374151;
     --success: #22c55e;
     --warning: #f59e0b;
     --danger: #ef4444;
     --info: #3b82f6;
-    --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --gradient-primary: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
     --gradient-card: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
@@ -301,6 +301,33 @@ body {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* DateTime Widget */
+.datetime-widget {
+    text-align: center;
+    padding: 28px 20px;
+    margin-bottom: 28px;
+    background: linear-gradient(135deg, #166534 0%, #15803d 50%, #166534 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.datetime-date {
+    font-size: 16px;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 8px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.datetime-time {
+    font-size: 48px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: 'Inter', monospace;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
 
 /* Entries List */

@@ -29,7 +29,18 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     loadRecentEntries();
     setupEventListeners();
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
 });
+
+// Update Date & Time
+function updateDateTime() {
+    const now = new Date();
+    const dateEl = document.getElementById('currentDate');
+    const timeEl = document.getElementById('currentTime');
+    if (dateEl) dateEl.textContent = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    if (timeEl) timeEl.textContent = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
 
 // Load Sync Status
 async function loadStatus() {
