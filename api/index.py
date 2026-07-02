@@ -141,7 +141,8 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
+if not os.path.exists(DB_PATH):
+    init_db()
 
 def simple_tokenize(text):
     return re.findall(r'[\w\u0E00-\u0E7F]+', text.lower())
