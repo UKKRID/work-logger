@@ -158,8 +158,6 @@ async function uploadImages(entryId) {
     }
     selectedImages = [];
 }
-    });
-}
 
 // View Switching
 function switchView(view) {
@@ -298,8 +296,8 @@ async function renderEntries(entries, containerId, isCompact = false) {
                 ${imagesHtml}
                 ${!isCompact ? `
                     <div class="entry-actions">
-                        <button class="btn-icon" onclick="editEntry(${entry.id})" title="แก้ไข">✏️</button>
-                        <button class="btn-icon danger" onclick="deleteEntry(${entry.id})" title="ลบ">🗑️</button>
+                        <button class="btn-icon" onclick="editEntry('${entry.id}')" title="แก้ไข">✏️</button>
+                        <button class="btn-icon danger" onclick="deleteEntry('${entry.id}')" title="ลบ">🗑️</button>
                     </div>
                 ` : ''}
             </div>
@@ -325,7 +323,7 @@ function renderTimeline(entries) {
     
     // Group by date
     const grouped = entries.reduce((acc, entry) => {
-        const date = entry.created_at.split(' ')[0];
+        const date = entry.created_at.split('T')[0];
         if (!acc[date]) acc[date] = [];
         acc[date].push(entry);
         return acc;
