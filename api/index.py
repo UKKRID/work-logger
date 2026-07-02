@@ -409,28 +409,47 @@ def ai_search():
     if not entries:
         return jsonify([])
     
-    corpus = []
+    query_lower = query.lower()
+    query_tokens = set(re.findall(r'[\w\u0E00-\u0E7F]+', query_lower))
+    
+    scored = []
     for entry in entries:
         try:
             tags = json.loads(entry['tags']) if entry['tags'] else []
             tags_text = ' '.join(tags) if isinstance(tags, list) else str(tags)
         except:
             tags_text = str(entry.get('tags', ''))
+        
         text = f"{entry.get('title', '')} {entry.get('description', '')} {entry.get('category', '')} {tags_text}"
-        corpus.append(text)
+        text_lower = text.lower()
+        
+        score = 0.0
+        
+        if query_lower in text_lower:
+            score += 0.8
+        
+        entry_tokens = set(re.findall(r'[\w\u0E00-\u0E7F]+', text_lower))
+        overlap = query_tokens & entry_tokens
+        if query_tokens:
+            score += (len(overlap) / len(query_tokens)) * 0.6
+        
+        if overlap:
+            score += 0.3
+        
+        title_lower = (entry.get('title') or '').lower()
+        for qt in query_tokens:
+            if qt in title_lower:
+                score += 0.4
+        
+        if score > 0:
+            scored.append((score, entry))
     
-    corpus.append(query)
-    tfidf_matrix, vocab = compute_tfidf(corpus)
-    query_vector = tfidf_matrix[-1]
-    similarities = [cosine_sim(query_vector, vec) for vec in tfidf_matrix[:-1]]
-    top_indices = sorted(range(len(similarities)), key=lambda i: similarities[i], reverse=True)[:10]
+    scored.sort(key=lambda x: x[0], reverse=True)
     
     results = []
-    for idx in top_indices:
-        if similarities[idx] > 0.05:
-            entry = entries[idx]
-            entry['relevance_score'] = float(similarities[idx])
-            results.append(entry)
+    for score, entry in scored[:10]:
+        entry['relevance_score'] = min(score, 1.0)
+        results.append(entry)
     
     return jsonify(results)
 
