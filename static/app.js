@@ -397,7 +397,7 @@ function renderTimeline(entries) {
             <div class="timeline-date-header">${formatFullDate(date)}</div>
             <div class="entries-list">
                 ${entries.map(entry => `
-                    <div class="entry-card">
+                    <div class="entry-card clickable" onclick="viewEntryDetail('${entry.id}')">
                         <div class="entry-header">
                             <h3 class="entry-title">${escapeHtml(entry.title)}</h3>
                             <span class="entry-category ${entry.category}">${getCategoryLabel(entry.category)}</span>
@@ -458,7 +458,7 @@ async function performAISearch() {
         resultsContainer.innerHTML = results.map(entry => `
             <div class="ai-result-item">
                 <div class="ai-result-score">ความเกี่ยวข้อง: ${Math.round(entry.relevance_score * 100)}%</div>
-                <div class="entry-card">
+                <div class="entry-card clickable" onclick="viewEntryDetail('${entry.id}')">
                     <div class="entry-header">
                         <h3 class="entry-title">${escapeHtml(entry.title)}</h3>
                         <span class="entry-category ${entry.category}">${getCategoryLabel(entry.category)}</span>
