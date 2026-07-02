@@ -60,17 +60,17 @@ body {
     margin-bottom: 40px;
 }
 
-.logo-icon {
-    font-size: 28px;
+.logo-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
 .logo-text {
     font-size: 20px;
     font-weight: 700;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--text-primary);
 }
 
 .nav-menu {
