@@ -385,7 +385,7 @@ def update_entry(entry_id):
             'description': data.get('description', ''),
             'category': data.get('category', 'general'),
             'tags': json.dumps(data.get('tags', []))
-        }, {'id': f'eq.{entry_id}'})
+        }, {'id': entry_id})
         entries = supabase_get('worklog', {'id': f'eq.{entry_id}', 'limit': '1'})
         entry = entries[0] if entries else None
         return jsonify(entry) if entry else jsonify({'error': 'Not found'}), 404
