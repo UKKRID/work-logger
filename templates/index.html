@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Logger - บันทึกการทำงาน</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">📋</span>
+                <span class="logo-text">Work Logger</span>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>แดชบอร์ด</span>
+                </button>
+                <button class="nav-item" data-view="entries">
+                    <span class="nav-icon">📝</span>
+                    <span>รายการทั้งหมด</span>
+                </button>
+                <button class="nav-item" data-view="search">
+                    <span class="nav-icon">🔍</span>
+                    <span>ค้นหา AI</span>
+                </button>
+                <button class="nav-item" data-view="timeline">
+                    <span class="nav-icon">📅</span>
+                    <span>ไทม์ไลน์</span>
+                </button>
+            </nav>
+            
+        <div class="sidebar-stats">
+            <div class="stat-item">
+                <span class="stat-value" id="totalEntries">0</span>
+                <span class="stat-label">รายการทั้งหมด</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="todayEntries">0</span>
+                <span class="stat-label">วันนี้</span>
+            </div>
+        </div>
+        <div class="sync-status" id="syncStatus">
+            <span class="sync-icon">🔄</span>
+            <span class="sync-text">Local Mode</span>
+        </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1 id="pageTitle">แดชบอร์ด</h1>
+                    <p class="header-subtitle">บันทึกและจัดการข้อมูลการทำงานของคุณ</p>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-primary" id="addNewBtn">
+                        <span>+</span> สร้างรายการใหม่
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard View -->
+            <section class="view active" id="dashboardView">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-icon">📝</div>
+                        <div class="stat-card-content">
+                            <h3 id="statTotal">0</h3>
+                            <p>รายการทั้งหมด</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon">📅</div>
+                        <div class="stat-card-content">
+                            <h3 id="statToday">0</h3>
+                            <p>วันนี้</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon">🏷️</div>
+                        <div class="stat-card-content">
+                            <h3 id="statCategories">0</h3>
+                            <p>หมวดหมู่</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-entries">
+                    <h2>รายการล่าสุด</h2>
+                    <div class="entries-list" id="recentEntries"></div>
+                </div>
+            </section>
+
+            <!-- Entries View -->
+            <section class="view" id="entriesView">
+                <div class="filters">
+                    <input type="text" placeholder="ค้นหา..." id="searchInput" class="search-input">
+                    <select id="categoryFilter" class="category-select">
+                        <option value="">ทุกหมวดหมู่</option>
+                        <option value="work">งาน</option>
+                        <option value="meeting">ประชุม</option>
+                        <option value="project">โปรเจค</option>
+                        <option value="personal">ส่วนตัว</option>
+                        <option value="general">ทั่วไป</option>
+                    </select>
+                </div>
+                <div class="entries-list" id="allEntries"></div>
+            </section>
+
+            <!-- AI Search View -->
+            <section class="view" id="searchView">
+                <div class="ai-search-box">
+                    <h2>🔍 ค้นหาด้วย AI</h2>
+                    <p>พิมพ์สิ่งที่ต้องการค้นหา - AI จะช่วยค้นหาข้อมูลที่เกี่ยวข้องให้คุณ</p>
+                    <div class="search-input-group">
+                        <input type="text" id="aiSearchInput" placeholder="เช่น 'ประชุมวันจันทร์' หรือ 'โปรเจค redesign'" class="ai-search-input">
+                        <button class="btn btn-primary" id="aiSearchBtn">ค้นหา</button>
+                    </div>
+                    <div class="ai-suggestions">
+                        <span class="suggestion-label">ตัวอย่าง:</span>
+                        <button class="suggestion-chip" data-query="ประชุม">ประชุม</button>
+                        <button class="suggestion-chip" data-query="โปรเจค">โปรเจค</button>
+                        <button class="suggestion-chip" data-query="งาน">งาน</button>
+                        <button class="suggestion-chip" data-query="bug">bug</button>
+                    </div>
+                </div>
+                <div class="ai-results" id="aiResults"></div>
+            </section>
+
+            <!-- Timeline View -->
+            <section class="view" id="timelineView">
+                <div class="timeline-container" id="timelineContainer"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">สร้างรายการใหม่</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <form id="entryForm">
+                <input type="hidden" id="entryId">
+                <div class="form-group">
+                    <label for="entryTitle">หัวข้อ *</label>
+                    <input type="text" id="entryTitle" required placeholder="หัวข้อรายการ">
+                </div>
+                <div class="form-group">
+                    <label for="entryDescription">รายละเอียด</label>
+                    <textarea id="entryDescription" rows="4" placeholder="อธิบายรายละเอียด..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="entryCategory">หมวดหมู่</label>
+                    <select id="entryCategory">
+                        <option value="work">งาน</option>
+                        <option value="meeting">ประชุม</option>
+                        <option value="project">โปรเจค</option>
+                        <option value="personal">ส่วนตัว</option>
+                        <option value="general" selected>ทั่วไป</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="entryTags">แท็ก (คั่นด้วยจุลภาค)</label>
+                    <input type="text" id="entryTags" placeholder="แท็ก1, แท็ก2, แท็ก3">
+                </div>
+                <div class="form-group">
+                    <label>รูปภาพ (ไม่บังคับ)</label>
+                    <div class="image-upload-area" id="imageUploadArea">
+                        <input type="file" id="imageInput" accept="image/*" multiple hidden>
+                        <div class="upload-placeholder" id="uploadPlaceholder">
+                            <span class="upload-icon">📷</span>
+                            <span>คลิกเพื่อเลือกรูป หรือลากมาวาง</span>
+                            <span class="upload-hint">รองรับ JPG, PNG, GIF (บีบอัดอัตโนมัติ)</span>
+                        </div>
+                        <div class="image-preview" id="imagePreview"></div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
