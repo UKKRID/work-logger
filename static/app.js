@@ -25,6 +25,7 @@ let selectedImages = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    loadUserInfo();
     loadStatus();
     loadStats();
     loadRecentEntries();
@@ -32,6 +33,29 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDateTime();
     setInterval(updateDateTime, 1000);
 });
+
+// Load User Info
+async function loadUserInfo() {
+    try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (!data.logged_in) {
+            window.location.href = '/login';
+            return;
+        }
+        document.getElementById('userDisplay').textContent = data.display_name || data.username;
+    } catch (e) {
+        window.location.href = '/login';
+    }
+}
+
+// Logout
+async function doLogout() {
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login';
+    } catch (e) {}
+}
 
 // Update Date & Time
 function updateDateTime() {

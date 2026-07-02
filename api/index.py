@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, session
 import sqlite3
 import json
 from datetime import datetime
@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, static_folder='../static', template_folder='../templates')
+app.secret_key = os.urandom(24)
 
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', '')
@@ -116,25 +117,37 @@ def get_db():
 def init_db():
     conn = get_db()
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            display_name TEXT
+        )
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS worklog (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
             title TEXT NOT NULL,
             description TEXT,
             category TEXT DEFAULT 'general',
             tags TEXT DEFAULT '[]',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     ''')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
             entry_id INTEGER,
             filename TEXT NOT NULL,
             original_name TEXT,
             file_size INTEGER,
             storage_path TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (entry_id) REFERENCES worklog(id) ON DELETE CASCADE
         )
     ''')
@@ -144,42 +157,110 @@ def init_db():
 if not os.path.exists(DB_PATH):
     init_db()
 
-def simple_tokenize(text):
-    return re.findall(r'[\w\u0E00-\u0E7F]+', text.lower())
-
-def compute_tfidf(documents):
-    tokenized = [simple_tokenize(doc) for doc in documents]
-    vocab = {}
-    for tokens in tokenized:
-        for token in tokens:
-            if token not in vocab:
-                vocab[token] = len(vocab)
-    tfidf_matrix = []
-    n_docs = len(documents)
-    for tokens in tokenized:
-        tf = Counter(tokens)
-        max_tf = max(tf.values()) if tf else 1
-        vector = [0.0] * len(vocab)
-        for token, count in tf.items():
-            if token in vocab:
-                tf_val = count / max_tf
-                df = sum(1 for t in tokenized if token in t)
-                idf = math.log(n_docs / df) if df > 0 else 0
-                vector[vocab[token]] = tf_val * idf
-        tfidf_matrix.append(vector)
-    return tfidf_matrix, vocab
-
-def cosine_sim(vec1, vec2):
-    dot = sum(a * b for a, b in zip(vec1, vec2))
-    norm1 = math.sqrt(sum(a * a for a in vec1))
-    norm2 = math.sqrt(sum(b * b for b in vec2))
-    if norm1 == 0 or norm2 == 0:
-        return 0
-    return dot / (norm1 * norm2)
-
 @app.route('/')
 def index():
+    if 'user_id' not in session:
+        return render_template('login.html')
     return render_template('index.html')
+
+@app.route('/login')
+def login_page():
+    return render_template('login.html')
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    
+    if not username or not password:
+        return jsonify({'error': 'กรุณาใส่ username และ password'}), 400
+    
+    if USE_SUPABASE:
+        users = supabase_get('users', {'username': f'eq.{username}', 'password': f'eq.{password}'})
+        if users and len(users) > 0:
+            user = users[0]
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['display_name'] = user.get('display_name') or user['username']
+            return jsonify({'success': True, 'display_name': session['display_name']})
+    else:
+        conn = get_db()
+        user = conn.execute(
+            'SELECT * FROM users WHERE username = ? AND password = ?',
+            (username, password)
+        ).fetchone()
+        conn.close()
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['display_name'] = user['display_name'] or user['username']
+            return jsonify({'success': True, 'display_name': session['display_name']})
+    
+    return jsonify({'error': 'Username หรือ Password ไม่ถูกต้อง'}), 401
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'success': True})
+
+@app.route('/api/auth/me')
+def auth_me():
+    if 'user_id' in session:
+        return jsonify({
+            'logged_in': True,
+            'username': session.get('username'),
+            'display_name': session.get('display_name'),
+            'user_id': session.get('user_id')
+        })
+    return jsonify({'logged_in': False})
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    display_name = data.get('display_name', '').strip() or username
+    
+    if not username or not password:
+        return jsonify({'error': 'กรุณาใส่ username และ password'}), 400
+    
+    if USE_SUPABASE:
+        existing = supabase_get('users', {'username': f'eq.{username}'})
+        if existing and len(existing) > 0:
+            return jsonify({'error': 'Username นี้มีอยู่แล้ว'}), 400
+        
+        user = supabase_insert('users', {
+            'username': username,
+            'password': password,
+            'display_name': display_name
+        })
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['display_name'] = display_name
+            return jsonify({'success': True, 'display_name': display_name})
+    else:
+        conn = get_db()
+        existing = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': 'Username นี้มีอยู่แล้ว'}), 400
+        
+        cursor = conn.execute(
+            'INSERT INTO users (username, password, display_name) VALUES (?, ?, ?)',
+            (username, password, display_name)
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+        conn.close()
+        
+        session['user_id'] = user_id
+        session['username'] = username
+        session['display_name'] = display_name
+        return jsonify({'success': True, 'display_name': display_name})
+    
+    return jsonify({'error': 'เกิดข้อผิดพลาด'}), 500
 
 @app.route('/api/status')
 def api_status():
@@ -190,12 +271,16 @@ def api_status():
 
 @app.route('/api/entries', methods=['GET'])
 def get_entries():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
     search = request.args.get('search', '')
     category = request.args.get('category', '')
     limit = request.args.get('limit', 50, type=int)
     
     if USE_SUPABASE:
-        params = {'order': 'created_at.desc', 'limit': '1000'}
+        params = {'order': 'created_at.desc', 'limit': '1000', 'user_id': f'eq.{user_id}'}
         if category:
             params['category'] = f'eq.{category}'
         entries = supabase_get('worklog', params)
@@ -215,28 +300,33 @@ def get_entries():
         conn = get_db()
         if search:
             entries = conn.execute(
-                'SELECT * FROM worklog WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC LIMIT ?',
-                (f'%{search}%', f'%{search}%', limit)
+                'SELECT * FROM worklog WHERE user_id = ? AND (title LIKE ? OR description LIKE ?) ORDER BY created_at DESC LIMIT ?',
+                (user_id, f'%{search}%', f'%{search}%', limit)
             ).fetchall()
         elif category:
             entries = conn.execute(
-                'SELECT * FROM worklog WHERE category = ? ORDER BY created_at DESC LIMIT ?',
-                (category, limit)
+                'SELECT * FROM worklog WHERE user_id = ? AND category = ? ORDER BY created_at DESC LIMIT ?',
+                (user_id, category, limit)
             ).fetchall()
         else:
             entries = conn.execute(
-                'SELECT * FROM worklog ORDER BY created_at DESC LIMIT ?',
-                (limit,)
+                'SELECT * FROM worklog WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+                (user_id, limit)
             ).fetchall()
         conn.close()
         return jsonify([dict(row) for row in entries])
 
 @app.route('/api/entries', methods=['POST'])
 def create_entry():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
     data = request.json
     
     if USE_SUPABASE:
         entry = supabase_insert('worklog', {
+            'user_id': user_id,
             'title': data['title'],
             'description': data.get('description', ''),
             'category': data.get('category', 'general'),
@@ -246,8 +336,8 @@ def create_entry():
     else:
         conn = get_db()
         cursor = conn.execute(
-            'INSERT INTO worklog (title, description, category, tags) VALUES (?, ?, ?, ?)',
-            (data['title'], data.get('description', ''), data.get('category', 'general'), json.dumps(data.get('tags', [])))
+            'INSERT INTO worklog (user_id, title, description, category, tags) VALUES (?, ?, ?, ?, ?)',
+            (user_id, data['title'], data.get('description', ''), data.get('category', 'general'), json.dumps(data.get('tags', [])))
         )
         conn.commit()
         entry_id = cursor.lastrowid
@@ -257,6 +347,10 @@ def create_entry():
 
 @app.route('/api/entries/<entry_id>', methods=['PUT'])
 def update_entry(entry_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
     data = request.json
     
     if USE_SUPABASE:
@@ -265,43 +359,53 @@ def update_entry(entry_id):
             'description': data.get('description', ''),
             'category': data.get('category', 'general'),
             'tags': json.dumps(data.get('tags', []))
-        }, {'id': entry_id})
+        }, {'id': entry_id, 'user_id': user_id})
         return jsonify(entry)
     else:
         conn = get_db()
         conn.execute(
-            'UPDATE worklog SET title = ?, description = ?, category = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (data['title'], data.get('description', ''), data.get('category', 'general'), json.dumps(data.get('tags', [])), entry_id)
+            'UPDATE worklog SET title = ?, description = ?, category = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+            (data['title'], data.get('description', ''), data.get('category', 'general'), json.dumps(data.get('tags', [])), entry_id, user_id)
         )
         conn.commit()
-        entry = conn.execute('SELECT * FROM worklog WHERE id = ?', (entry_id,)).fetchone()
+        entry = conn.execute('SELECT * FROM worklog WHERE id = ? AND user_id = ?', (entry_id, user_id)).fetchone()
         conn.close()
         return jsonify(dict(entry))
 
 @app.route('/api/entries/<entry_id>', methods=['DELETE'])
 def delete_entry(entry_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    
     if USE_SUPABASE:
-        images = supabase_get('images', {'entry_id': f'eq.{entry_id}'})
+        images = supabase_get('images', {'entry_id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}'})
         for img in images:
             if img.get('storage_path'):
                 supabase_delete_file(img['storage_path'])
-        supabase_delete('images', {'entry_id': entry_id})
-        supabase_delete('worklog', {'id': entry_id})
+        supabase_delete('images', {'entry_id': entry_id, 'user_id': user_id})
+        supabase_delete('worklog', {'id': entry_id, 'user_id': user_id})
     else:
         conn = get_db()
-        images = conn.execute('SELECT filename FROM images WHERE entry_id = ?', (entry_id,)).fetchall()
+        images = conn.execute('SELECT filename FROM images WHERE entry_id = ? AND user_id = ?', (entry_id, user_id)).fetchall()
         for img in images:
             filepath = os.path.join(UPLOAD_FOLDER, img['filename'])
             if os.path.exists(filepath):
                 os.remove(filepath)
-        conn.execute('DELETE FROM images WHERE entry_id = ?', (entry_id,))
-        conn.execute('DELETE FROM worklog WHERE id = ?', (entry_id,))
+        conn.execute('DELETE FROM images WHERE entry_id = ? AND user_id = ?', (entry_id, user_id))
+        conn.execute('DELETE FROM worklog WHERE id = ? AND user_id = ?', (entry_id, user_id))
         conn.commit()
         conn.close()
     return jsonify({'success': True})
 
 @app.route('/api/entries/<entry_id>/images', methods=['POST'])
 def upload_image(entry_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    
     if 'image' not in request.files:
         return jsonify({'error': 'No image provided'}), 400
     
@@ -313,10 +417,11 @@ def upload_image(entry_id):
     compressed = compress_image(image_data)
     
     if USE_SUPABASE:
-        filename = f"{entry_id}_{uuid.uuid4().hex[:8]}.webp"
+        filename = f"{user_id}_{entry_id}_{uuid.uuid4().hex[:8]}.webp"
         url = supabase_upload(filename, compressed)
         if url:
             entry = supabase_insert('images', {
+                'user_id': user_id,
                 'entry_id': entry_id,
                 'filename': filename,
                 'original_name': file.filename,
@@ -329,11 +434,11 @@ def upload_image(entry_id):
                 'url': url
             }), 201
     else:
-        filename = save_image_local(image_data, entry_id)
+        filename = save_image_local(compressed, entry_id)
         conn = get_db()
         cursor = conn.execute(
-            'INSERT INTO images (entry_id, filename, original_name, file_size) VALUES (?, ?, ?, ?)',
-            (entry_id, filename, file.filename, os.path.getsize(os.path.join(UPLOAD_FOLDER, filename)))
+            'INSERT INTO images (user_id, entry_id, filename, original_name, file_size) VALUES (?, ?, ?, ?, ?)',
+            (user_id, entry_id, filename, file.filename, os.path.getsize(os.path.join(UPLOAD_FOLDER, filename)))
         )
         conn.commit()
         image_id = cursor.lastrowid
@@ -346,15 +451,20 @@ def upload_image(entry_id):
 
 @app.route('/api/entries/<entry_id>/images', methods=['GET'])
 def get_entry_images(entry_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    
     if USE_SUPABASE:
-        images = supabase_get('images', {'entry_id': f'eq.{entry_id}', 'order': 'created_at'})
+        images = supabase_get('images', {'entry_id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}', 'order': 'created_at'})
         for img in images:
             if img.get('storage_path'):
                 img['url'] = f"{SUPABASE_URL}/storage/v1/object/public/worklog-images/{img['storage_path']}"
         return jsonify(images)
     else:
         conn = get_db()
-        images = conn.execute('SELECT * FROM images WHERE entry_id = ? ORDER BY created_at', (entry_id,)).fetchall()
+        images = conn.execute('SELECT * FROM images WHERE entry_id = ? AND user_id = ? ORDER BY created_at', (entry_id, user_id)).fetchall()
         conn.close()
         result = []
         for img in images:
@@ -369,19 +479,24 @@ def get_entry_images(entry_id):
 
 @app.route('/api/images/<image_id>', methods=['DELETE'])
 def delete_image(image_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    
     if USE_SUPABASE:
-        image = supabase_get('images', {'id': f'eq.{image_id}'})
+        image = supabase_get('images', {'id': f'eq.{image_id}', 'user_id': f'eq.{user_id}'})
         if image and image[0].get('storage_path'):
             supabase_delete_file(image[0]['storage_path'])
-        supabase_delete('images', {'id': image_id})
+        supabase_delete('images', {'id': image_id, 'user_id': user_id})
     else:
         conn = get_db()
-        image = conn.execute('SELECT filename FROM images WHERE id = ?', (image_id,)).fetchone()
+        image = conn.execute('SELECT filename FROM images WHERE id = ? AND user_id = ?', (image_id, user_id)).fetchone()
         if image:
             filepath = os.path.join(UPLOAD_FOLDER, image['filename'])
             if os.path.exists(filepath):
                 os.remove(filepath)
-            conn.execute('DELETE FROM images WHERE id = ?', (image_id,))
+            conn.execute('DELETE FROM images WHERE id = ? AND user_id = ?', (image_id, user_id))
             conn.commit()
         conn.close()
     return jsonify({'success': True})
@@ -392,6 +507,10 @@ def uploaded_file(filename):
 
 @app.route('/api/search/ai', methods=['POST'])
 def ai_search():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
     data = request.json
     query = data.get('query', '')
     
@@ -399,10 +518,10 @@ def ai_search():
         return jsonify([])
     
     if USE_SUPABASE:
-        entries = supabase_get('worklog', {'order': 'created_at.desc', 'limit': '1000'})
+        entries = supabase_get('worklog', {'order': 'created_at.desc', 'limit': '1000', 'user_id': f'eq.{user_id}'})
     else:
         conn = get_db()
-        entries = conn.execute('SELECT * FROM worklog ORDER BY created_at DESC').fetchall()
+        entries = conn.execute('SELECT * FROM worklog WHERE user_id = ? ORDER BY created_at DESC', (user_id,)).fetchall()
         entries = [dict(row) for row in entries]
         conn.close()
     
@@ -455,8 +574,13 @@ def ai_search():
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    
     if USE_SUPABASE:
-        entries = supabase_get('worklog', {'select': 'id,category,created_at'})
+        entries = supabase_get('worklog', {'select': 'id,category,created_at', 'user_id': f'eq.{user_id}'})
         total = len(entries)
         today = sum(1 for e in entries if e.get('created_at', '').startswith(datetime.now().strftime('%Y-%m-%d')))
         categories = {}
@@ -465,12 +589,12 @@ def get_stats():
             categories[cat] = categories.get(cat, 0) + 1
     else:
         conn = get_db()
-        total = conn.execute('SELECT COUNT(*) as count FROM worklog').fetchone()['count']
+        total = conn.execute('SELECT COUNT(*) as count FROM worklog WHERE user_id = ?', (user_id,)).fetchone()['count']
         today = conn.execute(
-            "SELECT COUNT(*) as count FROM worklog WHERE DATE(created_at) = DATE('now')"
+            "SELECT COUNT(*) as count FROM worklog WHERE user_id = ? AND DATE(created_at) = DATE('now')", (user_id,)
         ).fetchone()['count']
         categories = conn.execute(
-            'SELECT category, COUNT(*) as count FROM worklog GROUP BY category'
+            'SELECT category, COUNT(*) as count FROM worklog WHERE user_id = ? GROUP BY category', (user_id,)
         ).fetchall()
         categories = {row['category']: row['count'] for row in categories}
         conn.close()

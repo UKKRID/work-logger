@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Logger - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+        .login-card {
+            background: #1e293b;
+            border: 1px solid #374151;
+            border-radius: 16px;
+            padding: 40px 32px;
+            text-align: center;
+        }
+        .login-logo {
+            width: 160px;
+            margin: 0 auto 32px;
+        }
+        .login-logo img {
+            width: 100%;
+        }
+        .login-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .login-subtitle {
+            font-size: 14px;
+            color: #9ca3af;
+            margin-bottom: 32px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #d1d5db;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0f172a;
+            border: 1px solid #374151;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+        }
+        .form-group input::placeholder {
+            color: #64748b;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: #9ca3af;
+            margin-top: 12px;
+            font-size: 13px;
+            font-weight: 400;
+        }
+        .btn-secondary:hover {
+            color: #ffffff;
+        }
+        .error-msg {
+            display: none;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .error-msg.show { display: block; }
+
+        .register-form { display: none; }
+        .register-form.show { display: block; }
+        .login-form.hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <img src="/static/logo.png" alt="MEGA WOOD">
+            </div>
+            
+            <div class="error-msg" id="errorMsg"></div>
+
+            <!-- Login Form -->
+            <div class="login-form" id="loginForm">
+                <h1 class="login-title">เข้าสู่ระบบ</h1>
+                <p class="login-subtitle">Work Logger - บันทึกการทำงาน</p>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="loginUsername" placeholder="ใส่ username" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="ใส่ password" autocomplete="current-password">
+                </div>
+                <button class="btn btn-primary" onclick="doLogin()">เข้าสู่ระบบ</button>
+                <button class="btn btn-secondary" onclick="showRegister()">สร้างบัญชีใหม่</button>
+            </div>
+
+            <!-- Register Form -->
+            <div class="register-form" id="registerForm">
+                <h1 class="login-title">สร้างบัญชีใหม่</h1>
+                <p class="login-subtitle">สมัครสมาชิก Work Logger</p>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="regUsername" placeholder="ตั้ง username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="regPassword" placeholder="ตั้ง password">
+                </div>
+                <div class="form-group">
+                    <label>ชื่อที่ต้องการแสดง</label>
+                    <input type="text" id="regDisplayName" placeholder="ใส่ชื่อ (ไม่บังคับ)">
+                </div>
+                <button class="btn btn-primary" onclick="doRegister()">สร้างบัญชี</button>
+                <button class="btn btn-secondary" onclick="showLogin()">กลับไปเข้าสู่ระบบ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.classList.add('show');
+        }
+        function hideError() {
+            document.getElementById('errorMsg').classList.remove('show');
+        }
+        function showRegister() {
+            hideError();
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('show');
+        }
+        function showLogin() {
+            hideError();
+            document.getElementById('registerForm').classList.remove('show');
+            document.getElementById('loginForm').classList.remove('hidden');
+        }
+        async function doLogin() {
+            hideError();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            if (!username || !password) { showError('กรุณาใส่ username และ password'); return; }
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    window.location.href = '/';
+                } else {
+                    showError(data.error || 'Login ไม่สำเร็จ');
+                }
+            } catch (e) {
+                showError('เกิดข้อผิดพลาด');
+            }
+        }
+        async function doRegister() {
+            hideError();
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value.trim();
+            const displayName = document.getElementById('regDisplayName').value.trim();
+            if (!username || !password) { showError('กรุณาใส่ username และ password'); return; }
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, display_name: displayName })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    window.location.href = '/';
+                } else {
+                    showError(data.error || 'สมัครไม่สำเร็จ');
+                }
+            } catch (e) {
+                showError('เกิดข้อผิดพลาด');
+            }
+        }
+        document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') doLogin();
+        });
+        document.getElementById('regPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') doRegister();
+        });
+    </script>
+</body>
+</html>
