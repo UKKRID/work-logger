@@ -307,7 +307,7 @@ async function renderEntries(entries, containerId, isCompact = false) {
         let imagesHtml = '';
         if (!isCompact) {
             try {
-                const imagesRes = await fetch(`${API_BASE}/api/entries/${entry.id}/images`);
+                const imagesRes = await fetch(`${API_BASE}/api/entries/${entry.id}/images`, { credentials: 'same-origin' });
                 const images = await imagesRes.json();
                 if (images.length > 0) {
                     imagesHtml = `
