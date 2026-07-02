@@ -491,12 +491,46 @@ function openModal(entry = null) {
         document.getElementById('entryDescription').value = entry.description || '';
         document.getElementById('entryCategory').value = entry.category;
         document.getElementById('entryTags').value = JSON.parse(entry.tags || '[]').join(', ');
+        loadExistingImages(entry.id);
     } else {
         entryForm.reset();
         document.getElementById('entryId').value = '';
     }
     
     modalOverlay.classList.add('active');
+}
+
+async function loadExistingImages(entryId) {
+    try {
+        const res = await fetch(`${API_BASE}/api/entries/${entryId}/images`);
+        const images = await res.json();
+        if (images.length > 0) {
+            images.forEach(img => {
+                const div = document.createElement('div');
+                div.className = 'image-preview-item existing';
+                div.dataset.imageId = img.id;
+                div.innerHTML = `
+                    <img src="${img.url}" alt="${img.original_name || ''}">
+                    <button type="button" class="remove-image" onclick="deleteExistingImage(this, '${img.id}', '${entryId}')" title="ลบรูปนี้">&times;</button>
+                `;
+                imagePreview.appendChild(div);
+            });
+        }
+    } catch (e) {
+        console.error('Error loading existing images:', e);
+    }
+}
+
+async function deleteExistingImage(btn, imageId, entryId) {
+    if (!confirm('ลบรูปนี้จริงหรือไม่?')) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/images/${imageId}`, { method: 'DELETE' });
+        if (res.ok) {
+            btn.parentElement.remove();
+        }
+    } catch (e) {
+        console.error('Error deleting image:', e);
+    }
 }
 
 function closeModal() {
