@@ -259,7 +259,6 @@ async function renderEntries(entries, containerId, isCompact = false) {
     
     let html = '';
     for (const entry of entries) {
-        // Load images for each entry
         let imagesHtml = '';
         if (!isCompact) {
             try {
@@ -280,13 +279,16 @@ async function renderEntries(entries, containerId, isCompact = false) {
         }
         
         html += `
-            <div class="entry-card" data-id="${entry.id}">
+            <div class="entry-card${isCompact ? ' clickable' : ''}" data-id="${entry.id}" onclick="${isCompact ? `viewEntryDetail('${entry.id}')` : ''}">
                 <div class="entry-header">
                     <h3 class="entry-title">${escapeHtml(entry.title)}</h3>
                     <span class="entry-category ${entry.category}">${getCategoryLabel(entry.category)}</span>
                 </div>
                 ${!isCompact && entry.description ? `
                     <p class="entry-description">${escapeHtml(entry.description)}</p>
+                ` : ''}
+                ${isCompact && entry.description ? `
+                    <p class="entry-description compact">${escapeHtml(entry.description.substring(0, 80))}${entry.description.length > 80 ? '...' : ''}</p>
                 ` : ''}
                 <div class="entry-meta">
                     <span>📅 ${formatDate(entry.created_at)}</span>
@@ -296,8 +298,8 @@ async function renderEntries(entries, containerId, isCompact = false) {
                 ${imagesHtml}
                 ${!isCompact ? `
                     <div class="entry-actions">
-                        <button class="btn-icon" onclick="editEntry('${entry.id}')" title="แก้ไข">✏️</button>
-                        <button class="btn-icon danger" onclick="deleteEntry('${entry.id}')" title="ลบ">🗑️</button>
+                        <button class="btn-icon" onclick="event.stopPropagation(); editEntry('${entry.id}')" title="แก้ไข">✏️</button>
+                        <button class="btn-icon danger" onclick="event.stopPropagation(); deleteEntry('${entry.id}')" title="ลบ">🗑️</button>
                     </div>
                 ` : ''}
             </div>
@@ -305,6 +307,67 @@ async function renderEntries(entries, containerId, isCompact = false) {
     }
     
     container.innerHTML = html;
+}
+
+// View Entry Detail Modal
+async function viewEntryDetail(id) {
+    try {
+        const res = await fetch(`${API_BASE}/api/entries`);
+        const entries = await res.json();
+        const entry = entries.find(e => e.id === id);
+        if (!entry) return;
+
+        let imagesHtml = '';
+        try {
+            const imagesRes = await fetch(`${API_BASE}/api/entries/${id}/images`);
+            const images = await imagesRes.json();
+            if (images.length > 0) {
+                imagesHtml = `
+                    <div class="detail-images">
+                        ${images.map(img => `
+                            <img src="${img.url}" alt="" class="detail-image" onclick="openImageModal('${img.url}')">
+                        `).join('')}
+                    </div>
+                `;
+            }
+        } catch (e) {}
+
+        let tagsHtml = '';
+        try {
+            const tags = JSON.parse(entry.tags || '[]');
+            if (tags.length > 0) {
+                tagsHtml = `<div class="entry-tags">${tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`;
+            }
+        } catch (e) {}
+
+        const modal = document.createElement('div');
+        modal.className = 'detail-modal-overlay active';
+        modal.innerHTML = `
+            <div class="detail-modal">
+                <div class="detail-modal-header">
+                    <h2>${escapeHtml(entry.title)}</h2>
+                    <span class="entry-category ${entry.category}">${getCategoryLabel(entry.category)}</span>
+                </div>
+                <div class="detail-modal-meta">
+                    <span>📅 ${formatFullDate(entry.created_at)}</span>
+                    <span>🕐 ${formatTime(entry.created_at)}</span>
+                </div>
+                ${entry.description ? `<p class="detail-modal-desc">${escapeHtml(entry.description)}</p>` : ''}
+                ${tagsHtml}
+                ${imagesHtml}
+                <div class="detail-modal-actions">
+                    <button class="btn btn-secondary" onclick="this.closest('.detail-modal-overlay').remove()">ปิด</button>
+                    <button class="btn btn-primary" onclick="this.closest('.detail-modal-overlay').remove(); editEntry('${entry.id}')">แก้ไข</button>
+                </div>
+            </div>
+        `;
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+        document.body.appendChild(modal);
+    } catch (error) {
+        console.error('Error loading entry detail:', error);
+    }
 }
 
 // Render Timeline
