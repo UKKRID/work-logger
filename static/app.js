@@ -161,19 +161,72 @@ function handleImageSelect(e) {
 function handleImageFiles(files) {
     for (let file of files) {
         if (file.type.startsWith('image/')) {
-            selectedImages.push(file);
-            previewImage(file);
+            compressAndAdd(file);
         }
     }
+}
+
+async function compressAndAdd(file) {
+    try {
+        const compressed = await compressImageBrowser(file);
+        compressed._originalName = file.name;
+        compressed._originalSize = file.size;
+        selectedImages.push(compressed);
+        previewImage(compressed);
+    } catch (err) {
+        console.error('Compression error:', err);
+        selectedImages.push(file);
+        previewImage(file);
+    }
+}
+
+function compressImageBrowser(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                const maxSize = 1200;
+                if (width > maxSize || height > maxSize) {
+                    if (width > height) {
+                        height = Math.round(height * maxSize / width);
+                        width = maxSize;
+                    } else {
+                        width = Math.round(width * maxSize / height);
+                        height = maxSize;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), {
+                        type: 'image/webp',
+                        lastModified: Date.now()
+                    });
+                    resolve(compressedFile);
+                }, 'image/webp', 0.85);
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 function previewImage(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
+        const sizeKB = file.size ? Math.round(file.size / 1024) : '?';
         const div = document.createElement('div');
         div.className = 'image-preview-item';
         div.innerHTML = `
             <img src="${e.target.result}" alt="Preview">
+            <span class="image-size-badge">${sizeKB}KB</span>
             <button type="button" class="remove-image" onclick="removeImage(this, '${file.name}')">&times;</button>
         `;
         imagePreview.appendChild(div);
