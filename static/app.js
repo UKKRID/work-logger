@@ -637,28 +637,27 @@ async function handleSubmit(e) {
     
     try {
         let res;
-        if (editingEntryId) {
-            res = await apiFetch(`${API_BASE}/api/entries/${editingEntryId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-        } else {
-            res = await apiFetch(`${API_BASE}/api/entries`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-        }
+        const putUrl = editingEntryId ? `${API_BASE}/api/entries/${editingEntryId}` : `${API_BASE}/api/entries`;
+        const putMethod = editingEntryId ? 'PUT' : 'POST';
+        console.log(`[DEBUG] ${putMethod} ${putUrl}`, data);
+        
+        res = await apiFetch(putUrl, {
+            method: putMethod,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        console.log(`[DEBUG] Response: ${res.status} ${res.statusText}`);
+        const responseText = await res.text();
+        console.log(`[DEBUG] Body: ${responseText}`);
         
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            console.error('Save failed:', err);
-            alert('บันทึกล้มเหลว: ' + (err.error || 'Unknown error'));
+            alert('บันทึกล้มเหลว: ' + (responseText || res.statusText));
             return;
         }
         
-        const entry = await res.json();
+        const entry = JSON.parse(responseText);
+        console.log(`[DEBUG] Entry ID: ${entry.id}`);
         
         if (imagesToUpload.length > 0) {
             submitBtn.innerHTML = '<span class="spinner"></span> กำลังอัพรูป...';
