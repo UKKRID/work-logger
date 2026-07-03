@@ -92,8 +92,7 @@ def supabase_delete(table, match):
         url += f"{sep}{k}=eq.{v}"
         first = False
     resp = requests.delete(url, headers=supabase_headers())
-    if not resp.ok:
-        print(f"Supabase delete failed: {resp.status_code} {resp.text}")
+    print(f"DELETE {url} -> {resp.status_code} {resp.text[:200]}")
     return resp.ok
 
 def supabase_upload(file_path, file_data):
