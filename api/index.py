@@ -89,10 +89,10 @@ def supabase_delete(table, match):
     first = True
     for k, v in match.items():
         sep = '?' if first else '&'
-        url += f"{sep}{k}=eq.{v}"
+        val = v if v.startswith('eq.') else f'eq.{v}'
+        url += f"{sep}{k}={val}"
         first = False
     resp = requests.delete(url, headers=supabase_headers())
-    print(f"DELETE {url} -> {resp.status_code} {resp.text[:200]}")
     return resp.ok
 
 def supabase_upload(file_path, file_data):
