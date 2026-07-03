@@ -356,7 +356,8 @@ def create_entry():
             'title': data['title'],
             'description': data.get('description', ''),
             'category': data.get('category', 'general'),
-            'tags': json.dumps(data.get('tags', []))
+            'tags': json.dumps(data.get('tags', [])),
+            'image_urls': []
         })
         return jsonify(entry), 201
     else:
@@ -460,6 +461,13 @@ def upload_image(entry_id):
             'file_size': len(compressed),
             'storage_path': filename
         })
+        # Update worklog.image_urls
+        worklog = supabase_get('worklog', {'id': f'eq.{entry_id}', 'limit': '1'})
+        if worklog:
+            existing_urls = worklog[0].get('image_urls') or []
+            supabase_update('worklog', {
+                'image_urls': existing_urls + [url]
+            }, {'id': entry_id})
         return jsonify({
             'id': entry['id'] if entry else '',
             'filename': filename,
