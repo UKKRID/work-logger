@@ -73,8 +73,11 @@ def supabase_insert(table, data):
 
 def supabase_update(table, data, match):
     url = f"{SUPABASE_URL}/rest/v1/{table}"
+    first = True
     for k, v in match.items():
-        url += f"?{k}=eq.{v}"
+        sep = '?' if first else '&'
+        url += f"{sep}{k}=eq.{v}"
+        first = False
     resp = requests.patch(url, headers=supabase_headers(), json=data)
     result = resp.json()
     if resp.ok and result:
@@ -83,9 +86,14 @@ def supabase_update(table, data, match):
 
 def supabase_delete(table, match):
     url = f"{SUPABASE_URL}/rest/v1/{table}"
+    first = True
     for k, v in match.items():
-        url += f"?{k}=eq.{v}"
+        sep = '?' if first else '&'
+        url += f"{sep}{k}=eq.{v}"
+        first = False
     resp = requests.delete(url, headers=supabase_headers())
+    if not resp.ok:
+        print(f"Supabase delete failed: {resp.status_code} {resp.text}")
     return resp.ok
 
 def supabase_upload(file_path, file_data):
