@@ -98,6 +98,7 @@ def supabase_upload(file_path, file_data):
     resp = requests.post(url, headers=headers, data=file_data)
     if resp.ok:
         return f"{SUPABASE_URL}/storage/v1/object/public/worklog-images/{file_path}"
+    print(f"Supabase upload failed: {resp.status_code} {resp.text}")
     return None
 
 def supabase_delete_file(file_path):
@@ -449,21 +450,21 @@ def upload_image(entry_id):
     if USE_SUPABASE:
         filename = f"{user_id}_{entry_id}_{uuid.uuid4().hex[:8]}.webp"
         url = supabase_upload(filename, compressed)
-        if url:
-            entry = supabase_insert('images', {
-                'user_id': user_id,
-                'entry_id': entry_id,
-                'filename': filename,
-                'original_name': file.filename,
-                'file_size': len(compressed),
-                'storage_path': filename
-            })
-            return jsonify({
-                'id': entry['id'] if entry else '',
-                'filename': filename,
-                'url': url
-            }), 201
-        return jsonify({'error': 'Failed to upload image to storage'}), 500
+        if not url:
+            return jsonify({'error': 'Upload to Supabase Storage failed — check bucket exists & policies'}), 500
+        entry = supabase_insert('images', {
+            'user_id': user_id,
+            'entry_id': entry_id,
+            'filename': filename,
+            'original_name': file.filename,
+            'file_size': len(compressed),
+            'storage_path': filename
+        })
+        return jsonify({
+            'id': entry['id'] if entry else '',
+            'filename': filename,
+            'url': url
+        }), 201
     else:
         filename = save_image_local(compressed, entry_id)
         conn = get_db()
