@@ -652,7 +652,7 @@ async function handleSubmit(e) {
         console.log(`[DEBUG] Body: ${responseText}`);
         
         if (!res.ok) {
-            alert('บันทึกล้มเหลว: ' + (responseText || res.statusText));
+            alert('บันทึกล้มเหลว! Status: ' + res.status + '\n' + responseText);
             return;
         }
         
@@ -671,8 +671,8 @@ async function handleSubmit(e) {
         if (currentView === 'timeline') loadTimeline();
         
     } catch (error) {
-        console.error('Error saving entry:', error);
-        alert('เกิดข้อผิดพลาด: ' + error.message);
+        console.error('[DEBUG] Catch error:', error);
+        alert('เกิดข้อผิดพลาด: ' + error.message + '\n' + error.stack);
     } finally {
         submitBtn.disabled = false;
         cancelBtnEl.disabled = false;
