@@ -639,6 +639,7 @@ async function handleSubmit(e) {
         let res;
         const putUrl = editingEntryId ? `${API_BASE}/api/entries/${editingEntryId}` : `${API_BASE}/api/entries`;
         const putMethod = editingEntryId ? 'PUT' : 'POST';
+        console.log(`[DEBUG] editingEntryId = "${editingEntryId}" (type: ${typeof editingEntryId})`);
         console.log(`[DEBUG] ${putMethod} ${putUrl}`, data);
         
         res = await apiFetch(putUrl, {
@@ -682,13 +683,20 @@ async function handleSubmit(e) {
 
 // Edit Entry
 async function editEntry(id) {
+    editingEntryId = id;
     try {
-        const res = await apiFetch(`${API_BASE}/api/entries`);
+        const res = await apiFetch(`${API_BASE}/api/entries?limit=50`);
         const entries = await res.json();
         const entry = entries.find(e => e.id === id);
-        if (entry) openModal(entry);
+        if (entry) {
+            openModal(entry);
+        } else {
+            alert('ไม่พบรายการ');
+            editingEntryId = null;
+        }
     } catch (error) {
         console.error('Error fetching entry:', error);
+        editingEntryId = null;
     }
 }
 
