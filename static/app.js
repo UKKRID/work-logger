@@ -543,13 +543,17 @@ function openModal(entry = null) {
     selectedImages = [];
     imagePreview.innerHTML = '';
     
-    if (entry) {
+    if (entry && entry.id) {
         document.getElementById('entryId').value = entry.id;
-        document.getElementById('entryTitle').value = entry.title;
+        document.getElementById('entryTitle').value = entry.title || '';
         document.getElementById('entryDescription').value = entry.description || '';
-        document.getElementById('entryCategory').value = entry.category;
-        document.getElementById('entryTags').value = JSON.parse(entry.tags || '[]').join(', ');
-        loadExistingImages(entry.id);
+        document.getElementById('entryCategory').value = entry.category || 'work';
+        try {
+            document.getElementById('entryTags').value = JSON.parse(entry.tags || '[]').join(', ');
+        } catch(e) {
+            document.getElementById('entryTags').value = '';
+        }
+        if (editingEntryId) loadExistingImages(editingEntryId);
     } else {
         entryForm.reset();
         document.getElementById('entryId').value = '';
@@ -688,17 +692,17 @@ async function editEntry(id) {
     editingEntryId = id;
     try {
         const res = await apiFetch(`${API_BASE}/api/entries?limit=50`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const entries = await res.json();
         const entry = entries.find(e => e.id === id);
         if (entry) {
             openModal(entry);
         } else {
-            alert('ไม่พบรายการ');
-            editingEntryId = null;
+            openModal({ id: id, title: '', description: '', category: 'work', tags: '[]' });
         }
     } catch (error) {
         console.error('Error fetching entry:', error);
-        editingEntryId = null;
+        openModal({ id: id, title: '', description: '', category: 'work', tags: '[]' });
     }
 }
 
