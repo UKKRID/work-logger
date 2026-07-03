@@ -1,6 +1,11 @@
 // API Base URL
 const API_BASE = '';
 
+const apiFetch = (url, opts = {}) => {
+    opts.credentials = 'same-origin';
+    return fetch(url, opts);
+};
+
 // DOM Elements
 const navItems = document.querySelectorAll('.nav-item');
 const views = document.querySelectorAll('.view');
@@ -37,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Load User Info
 async function loadUserInfo() {
     try {
-        const res = await fetch('/api/auth/me');
+        const res = await apiFetch('/api/auth/me');
         const data = await res.json();
         if (!data.logged_in) {
             window.location.href = '/login';
@@ -52,7 +57,7 @@ async function loadUserInfo() {
 // Logout
 async function doLogout() {
     try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        await apiFetch('/api/auth/logout', { method: 'POST' });
         window.location.href = '/login';
     } catch (e) {}
 }
@@ -69,7 +74,7 @@ function updateDateTime() {
 // Load Sync Status
 async function loadStatus() {
     try {
-        const res = await fetch(`${API_BASE}/api/status`);
+        const res = await apiFetch(`${API_BASE}/api/status`);
         const status = await res.json();
         const syncEl = document.getElementById('syncStatus');
         
@@ -188,7 +193,7 @@ async function uploadImages(entryId, files) {
             const formData = new FormData();
             formData.append('image', file);
             
-            const res = await fetch(`${API_BASE}/api/entries/${entryId}/images`, {
+            const res = await apiFetch(`${API_BASE}/api/entries/${entryId}/images`, {
                 method: 'POST',
                 credentials: 'same-origin',
                 body: formData
@@ -234,7 +239,7 @@ function switchView(view) {
 // Load Stats
 async function loadStats() {
     try {
-        const res = await fetch(`${API_BASE}/api/stats`);
+        const res = await apiFetch(`${API_BASE}/api/stats`);
         const stats = await res.json();
         
         document.getElementById('statTotal').textContent = stats.total;
@@ -251,7 +256,7 @@ async function loadStats() {
 // Load Recent Entries
 async function loadRecentEntries() {
     try {
-        const res = await fetch(`${API_BASE}/api/entries?limit=5`);
+        const res = await apiFetch(`${API_BASE}/api/entries?limit=5`);
         const entries = await res.json();
         renderEntries(entries, 'recentEntries', true);
     } catch (error) {
@@ -269,7 +274,7 @@ async function loadAllEntries() {
         if (search) url += `&search=${encodeURIComponent(search)}`;
         if (category) url += `&category=${encodeURIComponent(category)}`;
         
-        const res = await fetch(url);
+        const res = await apiFetch(url);
         const entries = await res.json();
         renderEntries(entries, 'allEntries', false);
     } catch (error) {
@@ -280,7 +285,7 @@ async function loadAllEntries() {
 // Load Timeline
 async function loadTimeline() {
     try {
-        const res = await fetch(`${API_BASE}/api/entries?limit=100`);
+        const res = await apiFetch(`${API_BASE}/api/entries?limit=100`);
         const entries = await res.json();
         renderTimeline(entries);
     } catch (error) {
@@ -306,7 +311,7 @@ async function renderEntries(entries, containerId, isCompact = false) {
     for (const entry of entries) {
         let imagesHtml = '';
         try {
-            const imagesRes = await fetch(`${API_BASE}/api/entries/${entry.id}/images`, { credentials: 'same-origin' });
+            const imagesRes = await apiFetch(`${API_BASE}/api/entries/${entry.id}/images`);
             const images = await imagesRes.json();
             if (images.length > 0) {
                 imagesHtml = `
@@ -355,14 +360,14 @@ async function renderEntries(entries, containerId, isCompact = false) {
 // View Entry Detail Modal
 async function viewEntryDetail(id) {
     try {
-        const res = await fetch(`${API_BASE}/api/entries`);
+        const res = await apiFetch(`${API_BASE}/api/entries`);
         const entries = await res.json();
         const entry = entries.find(e => e.id === id);
         if (!entry) return;
 
         let imagesHtml = '';
         try {
-            const imagesRes = await fetch(`${API_BASE}/api/entries/${id}/images`, { credentials: 'same-origin' });
+            const imagesRes = await apiFetch(`${API_BASE}/api/entries/${id}/images`);
             const images = await imagesRes.json();
             if (images.length > 0) {
                 imagesHtml = `
@@ -486,7 +491,7 @@ async function performAISearch() {
     resultsContainer.innerHTML = '<div class="loading-state"><span class="spinner large"></span><p>กำลังค้นหา...</p></div>';
     
     try {
-        const res = await fetch(`${API_BASE}/api/search/ai`, {
+        const res = await apiFetch(`${API_BASE}/api/search/ai`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query })
@@ -553,7 +558,7 @@ function openModal(entry = null) {
 
 async function loadExistingImages(entryId) {
     try {
-        const res = await fetch(`${API_BASE}/api/entries/${entryId}/images`, { credentials: 'same-origin' });
+        const res = await apiFetch(`${API_BASE}/api/entries/${entryId}/images`);
         const images = await res.json();
         if (images.length > 0) {
             images.forEach(img => {
@@ -575,7 +580,7 @@ async function loadExistingImages(entryId) {
 async function deleteExistingImage(btn, imageId, entryId) {
     if (!confirm('ลบรูปนี้จริงหรือไม่?')) return;
     try {
-        const res = await fetch(`${API_BASE}/api/images/${imageId}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API_BASE}/api/images/${imageId}`, { method: 'DELETE' });
         if (res.ok) {
             btn.parentElement.remove();
         }
@@ -633,13 +638,13 @@ async function handleSubmit(e) {
     try {
         let res;
         if (editingEntryId) {
-            res = await fetch(`${API_BASE}/api/entries/${editingEntryId}`, {
+            res = await apiFetch(`${API_BASE}/api/entries/${editingEntryId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
         } else {
-            res = await fetch(`${API_BASE}/api/entries`, {
+            res = await apiFetch(`${API_BASE}/api/entries`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -679,7 +684,7 @@ async function handleSubmit(e) {
 // Edit Entry
 async function editEntry(id) {
     try {
-        const res = await fetch(`${API_BASE}/api/entries`);
+        const res = await apiFetch(`${API_BASE}/api/entries`);
         const entries = await res.json();
         const entry = entries.find(e => e.id === id);
         if (entry) openModal(entry);
@@ -693,7 +698,7 @@ async function deleteEntry(id) {
     if (!confirm('คุณต้องการลบรายการนี้หรือไม่?')) return;
     
     try {
-        const res = await fetch(`${API_BASE}/api/entries/${id}`, {
+        const res = await apiFetch(`${API_BASE}/api/entries/${id}`, {
             method: 'DELETE'
         });
         
