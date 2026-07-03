@@ -426,6 +426,7 @@ def delete_entry(entry_id):
             if img.get('storage_path'):
                 supabase_delete_file(img['storage_path'])
         supabase_delete('images', {'entry_id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}'})
+        supabase_update('worklog', {'image_urls': []}, {'id': entry_id})
         supabase_delete('worklog', {'id': f'eq.{entry_id}', 'user_id': f'eq.{user_id}'})
     else:
         conn = get_db()
@@ -538,9 +539,20 @@ def delete_image(image_id):
     
     if USE_SUPABASE:
         image = supabase_get('images', {'id': f'eq.{image_id}', 'user_id': f'eq.{user_id}'})
-        if image and image[0].get('storage_path'):
-            supabase_delete_file(image[0]['storage_path'])
-        supabase_delete('images', {'id': f'eq.{image_id}', 'user_id': f'eq.{user_id}'})
+        if image and image[0]:
+            img_data = image[0]
+            if img_data.get('storage_path'):
+                supabase_delete_file(img_data['storage_path'])
+            # Remove URL from worklog.image_urls
+            entry_id = img_data.get('entry_id')
+            if entry_id:
+                worklog = supabase_get('worklog', {'id': f'eq.{entry_id}', 'limit': '1'})
+                if worklog:
+                    existing_urls = worklog[0].get('image_urls') or []
+                    storage_url = f"{SUPABASE_URL}/storage/v1/object/public/worklog-images/{img_data['storage_path']}"
+                    new_urls = [u for u in existing_urls if u != storage_url]
+                    supabase_update('worklog', {'image_urls': new_urls}, {'id': entry_id})
+            supabase_delete('images', {'id': f'eq.{image_id}', 'user_id': f'eq.{user_id}'})
     else:
         conn = get_db()
         image = conn.execute('SELECT filename FROM images WHERE id = ? AND user_id = ?', (image_id, user_id)).fetchone()
