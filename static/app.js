@@ -613,8 +613,10 @@ async function handleSubmit(e) {
     e.preventDefault();
     
     const submitBtn = entryForm.querySelector('button[type="submit"]');
+    const cancelBtnEl = document.getElementById('cancelBtn');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
+    cancelBtnEl.disabled = true;
     submitBtn.innerHTML = '<span class="spinner"></span> กำลังบันทึก...';
     
     const data = {
@@ -623,6 +625,10 @@ async function handleSubmit(e) {
         category: document.getElementById('entryCategory').value,
         tags: document.getElementById('entryTags').value.split(',').map(t => t.trim()).filter(t => t)
     };
+    
+    const imagesToUpload = [...selectedImages];
+    selectedImages = [];
+    imagePreview.innerHTML = '';
     
     try {
         let res;
@@ -640,31 +646,32 @@ async function handleSubmit(e) {
             });
         }
         
-        if (res.ok) {
-            const entry = await res.json();
-            
-            if (selectedImages.length > 0) {
-                submitBtn.innerHTML = '<span class="spinner"></span> กำลังอัพรูป...';
-                const imgsToUpload = [...selectedImages];
-                selectedImages = [];
-                await uploadImages(entry.id, imgsToUpload);
-            } else {
-                closeModal();
-            }
-            
-            loadStats();
-            if (currentView === 'dashboard') loadRecentEntries();
-            if (currentView === 'entries') loadAllEntries();
-            if (currentView === 'timeline') loadTimeline();
-            if (selectedImages.length === 0) closeModal();
-        } else {
+        if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             console.error('Save failed:', err);
+            alert('บันทึกล้มเหลว: ' + (err.error || 'Unknown error'));
+            return;
         }
+        
+        const entry = await res.json();
+        
+        if (imagesToUpload.length > 0) {
+            submitBtn.innerHTML = '<span class="spinner"></span> กำลังอัพรูป...';
+            await uploadImages(entry.id, imagesToUpload);
+        }
+        
+        closeModal();
+        loadStats();
+        if (currentView === 'dashboard') loadRecentEntries();
+        if (currentView === 'entries') loadAllEntries();
+        if (currentView === 'timeline') loadTimeline();
+        
     } catch (error) {
         console.error('Error saving entry:', error);
+        alert('เกิดข้อผิดพลาด: ' + error.message);
     } finally {
         submitBtn.disabled = false;
+        cancelBtnEl.disabled = false;
         submitBtn.textContent = originalText;
     }
 }
