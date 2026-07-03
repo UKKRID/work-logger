@@ -390,7 +390,9 @@ def update_entry(entry_id):
         }, {'id': entry_id})
         entries = supabase_get('worklog', {'id': f'eq.{entry_id}', 'limit': '1'})
         entry = entries[0] if entries else None
-        return jsonify(entry) if entry else jsonify({'error': 'Not found'}), 404
+        if entry:
+            return jsonify(entry)
+        return jsonify({'error': 'Not found'}), 404
     else:
         conn = get_db()
         conn.execute(
