@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     loadRecentEntries();
     setupEventListeners();
+    setupBottomNav();
+    preventDoubleTapZoom();
     updateDateTime();
     setInterval(updateDateTime, 1000);
 });
@@ -266,8 +268,13 @@ async function uploadImages(entryId, files) {
 function switchView(view) {
     currentView = view;
     
-    // Update nav
+    // Update sidebar nav
     navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.view === view);
+    });
+    
+    // Update bottom nav
+    document.querySelectorAll('.bottom-nav-item').forEach(item => {
         item.classList.toggle('active', item.dataset.view === view);
     });
     
@@ -823,4 +830,27 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// Bottom Nav Setup
+function setupBottomNav() {
+    const bottomNavItems = document.querySelectorAll('.bottom-nav-item');
+    bottomNavItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const view = item.dataset.view;
+            switchView(view);
+        });
+    });
+}
+
+// Prevent double-tap zoom on mobile
+function preventDoubleTapZoom() {
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, { passive: false });
 }

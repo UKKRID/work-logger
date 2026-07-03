@@ -2,10 +2,13 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Work Logger - บันทึกการทำงาน</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -198,6 +201,25 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='app.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='app.js') }}?v=4"></script>
+    <!-- Mobile Bottom Nav -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="bottom-nav-item active" data-view="dashboard">
+            <span class="bottom-nav-icon">📊</span>
+            <span class="bottom-nav-label">แดชบอร์ด</span>
+        </button>
+        <button class="bottom-nav-item" data-view="entries">
+            <span class="bottom-nav-icon">📝</span>
+            <span class="bottom-nav-label">รายการ</span>
+        </button>
+        <button class="bottom-nav-item" data-view="search">
+            <span class="bottom-nav-icon">🔍</span>
+            <span class="bottom-nav-label">ค้นหา</span>
+        </button>
+        <button class="bottom-nav-item" data-view="timeline">
+            <span class="bottom-nav-icon">📅</span>
+            <span class="bottom-nav-label">ไทม์ไลน์</span>
+        </button>
+    </nav>
 </body>
 </html>
