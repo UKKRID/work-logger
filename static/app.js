@@ -536,8 +536,10 @@ async function performAISearch() {
 
 // Modal Functions
 function openModal(entry = null) {
-    editingEntryId = entry ? entry.id : null;
-    document.getElementById('modalTitle').textContent = entry ? 'แก้ไขรายการ' : 'สร้างรายการใหม่';
+    if (!editingEntryId) {
+        editingEntryId = entry ? entry.id : null;
+    }
+    document.getElementById('modalTitle').textContent = editingEntryId ? 'แก้ไขรายการ' : 'สร้างรายการใหม่';
     selectedImages = [];
     imagePreview.innerHTML = '';
     
